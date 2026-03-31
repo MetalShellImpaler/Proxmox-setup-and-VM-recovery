@@ -1,4 +1,4 @@
-# Proxmox Disaster Recovery: Restoring VMs from Legacy LVM disks
+# Proxmox Disaster Recovery: Restoring VMs from LVM disks
 
 # Storage Discovery & LVM Conflict Resolution
 # identify the drive
@@ -10,9 +10,11 @@ vgs -o +vg_uuid
 vgrename [UUID] old_pve
 vgchange -ay old_pve
 
+# Mount the old root partition to a temporary directory
+mkdir -p /mnt/old_ssd
+mount /dev/old_pve/root /mnt/old_ssd
+
 ls /mnt/old_ssd/var/lib/vz/images
-
-
 
 # List and View VM Configs
 
@@ -30,8 +32,8 @@ cat /etc/pve/qemu-server/100.conf
 
 # Migrate the Virtual Disk
 mkdir -p /var/lib/vz/images/100
-
 cp /mnt/old_ssd/var/lib/vz/images/100/vm-100-disk-0.qcow2 /var/lib/vz/images/100/
+# Some VMs have more than 1 file\disk, you will need to copy all of them.
 
 #Check the file:
 ls -l /var/lib/vz/images/100/
@@ -39,10 +41,13 @@ ls -l /var/lib/vz/images/100/
 # Scan for the disk
 qm rescan --vmid 100
 
-# if even one line in your configuration mentions the old storage, it will try to "activate" it and fail.
-# in the database file the info should be the info of the new install
+# If even one line in your configuration mentions the old storage, it will try to Boot it and fail.
+# In the database file the info should be the info of the new install
+# Make sure that the right disk is set to boot from.
 # for example:
 virtio0: local:100/vm-100-disk-0.qcow2,size=52G
+
+# If there is an ISO location from the old config, remove it or write this:
 ide2: none,media=cdrom
 
 
@@ -57,4 +62,3 @@ pvesm set local --content images,rootdir,vztmpl,iso,backup
 #    In the Content dropdown, make sure Disk image is selected (it should be highlighted/checked).
 
 #    Click OK.
-
